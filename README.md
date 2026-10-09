@@ -19,11 +19,29 @@ https://github.com/NuttoSGXX/Grim_Sanity/releases/latest/download/module.json
 - **Sanity Dice (d6).** Each character has dice equal to their best INT, WIS or CHA modifier + 1, never fewer than 2 or more than 5.
 - **Trauma Dice (d6).** A card has Trauma 1 to 3. Without a card the GM picks 1 to 5.
 - **The duel.** Both sides sort high to low and compare in columns. The higher die wins the pair. **A tie goes to the dark.**
-- **Losing.** Each pair lost cracks one die (three at most in one duel) and the card's symptom takes hold: 1 pair lost until the scene ends, 2 until the next long rest, 3 or more until every die has mended.
 - **Winning every pair** earns Inspiration, once per session.
-- **Unhinged.** With every die cracked a character holds 2 Insanity Dice (d8). In a duel they roll those instead, win ties, and cannot crack further. Once per turn they may add 1d8 to an attack or damage roll, and attacks against them then have advantage until their next turn starts.
-- **Mending.** A long rest mends 1 die. The GM can mend or crack dice by hand at any time.
 - **Shine.** Once per duel the GM can let the Light reroll one losing die against the same Trauma Die.
+- **Mending.** A long rest mends 1 die. The GM can mend or crack dice by hand at any time.
+
+### What losing costs
+
+| Pairs lost | Dice cracked | Card's symptom lasts | Madness |
+| --- | --- | --- | --- |
+| 1 | 1 | until the scene ends | short-term (1d10 minutes) |
+| 2 | 2 | until the next long rest | long-term (1d10 × 10 hours) |
+| 3 or more | 3 | until every die has mended | long-term and indefinite |
+
+- **Madness** is rolled on the three 5e SRD tables, reworded and translated. A character holds one madness of each kind at most; a new one replaces the old. Timed madness ends by itself as world time passes. Indefinite madness is a flaw to play, kept until every die has mended.
+- **Frayed.** Each cracked die is −1 to Intelligence, Wisdom and Charisma saving throws.
+- If the last die cracks, the madness is long-term at least.
+
+### Unhinged
+
+With every die cracked a character is unhinged until one die mends.
+
+- Disadvantage on Wisdom and Charisma checks, on top of the Frayed penalty.
+- They hold 2 Insanity Dice (d8). **Once per turn** they may add 1d8 to one attack or damage roll. They take **psychic damage equal to the roll**, and on a 1 a short-term madness takes hold. Click the violet dice on the party strip to do this; the module rolls, applies the damage and posts it.
+- In a duel they roll the 2d8 and win ties. No die can crack, so the mind pays instead: one pair lost is a long-term madness, two is long-term and indefinite. An unhinged character cannot earn Inspiration from a duel.
 
 ## How to use
 
@@ -39,21 +57,23 @@ On the duel screen the GM has **Roll Trauma**, **Roll Remaining** (rolls for any
 
 ### Deck tab
 Decide which cards may be drawn, at any moment:
-- **Scene** presets: Travel (everything), Combat, Town, Camp, Sealed (nothing).
+- **Scene** presets: Travel (Frenzy, Spores, Ooze), Combat, Social (the Doubt suit, for conversations and towns), Camp (the Vigil suit, for rests), All, Sealed (nothing).
 - **Cap** on Trauma.
-- Whole suits (Frenzy, Spores, Ooze) or single cards on and off.
+- Whole suits (Frenzy, Spores, Ooze, Doubt, Vigil) or single cards on and off. 22 cards in all.
 
 ### Party tab
-Crack or mend a die, change how many dice a character has, remove a symptom, hide a character from the strip. **End Scene** clears symptoms that last for the scene. **New Session** lets Inspiration be earned again. **Mend All** restores everyone.
+Crack or mend a die, change how many dice a character has, remove a symptom, roll or remove a madness, hide a character from the strip. **End Scene** clears symptoms that last for the scene. **New Session** lets Inspiration be earned again. **Mend All** restores everyone.
 
 ### Light tab
 Eight boons to hand the party. Granting one shows a golden banner to everyone. Three are applied by the module: **Faint Glimmer** mends a die for the most cracked character, **Lifting Fog** removes one symptom, **Heart Ward** arms the next duel.
 
 ## The party strip
 
-A small draggable strip shows every tracked character's dice, cracked dice, symptom and unhinged state. An unhinged character's owner can click the violet dice to roll an Insanity Die to chat.
+A small draggable strip shows every tracked character's dice, cracked dice, symptom, madness and unhinged state. An unhinged character's owner can click the violet dice to spend an Insanity Die.
 
 ## Symptoms on the sheet
+
+Frayed, Unhinged and every madness are Active Effects too. Madness that names a condition switches that condition on (paralysed, frightened, stunned, unconscious, blinded, deafened, incapacitated).
 
 A symptom is added to the character as an Active Effect with its text. Where dnd5e has a matching rule the effect also applies it (disadvantage on Stealth, Insight, Investigation, Athletics, concentration or Initiative, or speed reduced by 5 feet). Symptoms that depend on the situation, such as hearing-based Perception, stay as a note. Turn the rule changes off in settings if you prefer notes only.
 
@@ -67,11 +87,13 @@ A symptom is added to the character as an Active Effect with its text. Where dnd
 | Fewest / most Sanity Dice | World | 2 / 5 |
 | Dice mended by a long rest | World | 1 |
 | Inspiration for the unshaken | World | On |
+| Madness | World | Full tables (or Playable results only, or Off) |
+| Cracked dice weaken the mind | World | On |
 | Symptoms change the sheet | World | On |
 | Players see the party strip | World | On |
 | Post results to chat | World | On |
 | Show the party strip, strip size | Client | On, 100% |
-| Dice sound | Client | On |
+| Sound effects, volume | Client | On, 70% |
 | Reduced effects | Client | Off |
 
 ## For other modules and macros
@@ -84,11 +106,15 @@ gs.shine(actorId, column);      // reroll one losing die
 gs.seal(); gs.cancel();
 gs.grant("faint-glimmer");
 gs.draw(3); gs.openCards();     // card ids the deck allows right now
-gs.sanity(actor);               // { max, cracked, intact, unhinged, cond }
+gs.inflict(actor, "long");      // roll a madness: "short", "long" or "indef"
+gs.sanity(actor);               // { max, cracked, intact, unhinged, cond, mad }
 ```
 
 ## Notes
 
 - A player who joins or reloads while a duel is on screen will not see it. Cancel it and call it again.
 - The dice are drawn by this module (CSS 3D) and spin in place. No Dice So Nice roll is thrown across the table.
+- **Playable results only** leaves out madness that removes a character from play (paralysed, incapacitated, stunned, unconscious). Use it if a player sitting out for minutes does not suit your table or stream.
+- Sound effects are generated in the browser with the Web Audio API; the module ships no audio files. They follow Foundry's Interface volume and the module's own volume setting.
+- The madness tables follow the madness rules of the 5e System Reference Document 5.1 (CC BY 4.0, Wizards of the Coast).
 - Fonts: Cinzel, Cormorant Garamond, Spectral and Noto Serif Thai, all under the SIL Open Font License.

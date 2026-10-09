@@ -9,6 +9,8 @@ import { sigil, eye, crackUrl } from "./art.js";
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const INTRO_MS = 4600;
+const MAD_LABEL = { short: "Short-term", long: "Long-term", indef: "Indefinite" };
+const MAD_NOTE = { short: "short-term madness", long: "long-term madness", indef: "indefinite madness" };
 
 /** Card face markup, shared by the duel screen and the GM panel. */
 export function cardMarkup(card, lang = "th", { compact = false } = {}) {
@@ -41,7 +43,7 @@ export function cardMarkup(card, lang = "th", { compact = false } = {}) {
 export class Duel {
   /**
    * @param duel  { id, card, trauma, line, ward, players: [{ actorId, userId, name, img, sub, color, count, sides, unhinged, intact }] }
-   * @param h     { isGM, lang, dim, accent, low, canRoll(p), onTrauma(), onPlayer(p), onShine(actorId, col), onSeal(), onCancel(), onDismiss(), sound() }
+   * @param h     { isGM, lang, dim, accent, low, canRoll(p), onTrauma(), onPlayer(p), onShine(actorId, col), onSeal(), onCancel(), onDismiss(), sfx(name) }
    */
   constructor(duel, h) {
     this.duel = duel; this.h = h;
@@ -127,6 +129,8 @@ export class Duel {
 
     el.addEventListener("click", (ev) => this.onClick(ev));
     requestAnimationFrame(() => el.classList.add("is-open"));
+    h.sfx?.("open");
+    this.timers.push(setTimeout(() => h.sfx?.("card"), 650));
     this.timers.push(setTimeout(() => this.endIntro(), INTRO_MS));
   }
 
@@ -187,7 +191,7 @@ export class Duel {
     this.trauma = sortDesc(values);
     this.el.classList.add("has-trauma");
     this.btn("trauma", true);
-    this.h.sound?.();
+    this.h.sfx?.("trauma");
     await Promise.all(this.tdice.map((d, i) => d.roll(this.trauma[i], { dur: 1.5 + i * 0.12, delay: i * 90 })));
     if (this.closed) return;
     this.trow.classList.add("is-rolled");
@@ -204,7 +208,7 @@ export class Duel {
     await this.traumaLanded;
     if (this.closed) return;
     r.el.classList.add("is-busy", "is-rolling");
-    this.h.sound?.();
+    this.h.sfx?.("roll");
     await Promise.all(r.dice.map((d, i) => d.roll(r.values[i], { dur: 1.4 + i * 0.1, delay: i * 80 })));
     if (this.closed) return;
     r.el.classList.remove("is-rolling");
@@ -225,6 +229,7 @@ export class Duel {
       d.el.classList.toggle("is-tie", pair.tie);
       const hit = this.tdice[i].el; hit.classList.remove("is-hit"); void hit.offsetWidth; hit.classList.add("is-hit");
       if (animate) {
+        this.h.sfx?.(pair.win ? "win" : "crack");
         if (pair.win) this.fx.at(d.el, "gold", 22);
         else { this.fx.at(d.el, r.p.unhinged ? "violet" : "shard", r.p.unhinged ? 20 : 30); this.fx.at(d.el, "ember", 14); this.flash("dark"); }
       }
@@ -242,11 +247,13 @@ export class Duel {
     const bits = [];
     if (o.cracks) bits.push(`${o.cracks} ${o.cracks === 1 ? "die cracks" : "dice crack"}`);
     if (o.until && this.duel.card?.id) bits.push(`symptom ${UNTIL[o.until]}`);
+    for (const tier of o.madness ?? []) bits.push(MAD_NOTE[tier]);
     if (o.inspiration) bits.push("Inspiration");
     if (o.breaks) bits.push("2 Insanity Dice");
     row.querySelector(".gsn-note").textContent = bits.join(" · ");
     if (animate && o.breaks) { this.flash("violet"); for (const d of r.dice) { this.fx.at(d.el, "violet", 40); this.fx.flame(d.el); } }
     if (animate && o.key === "unshaken") this.flash("light");
+    if (animate) { const s = o.breaks ? "unhinged" : o.key === "unshaken" ? "unshaken" : o.key === "broken" || o.key === "haunted" ? "broken" : null; if (s) this.timers.push(setTimeout(() => this.h.sfx?.(s), 180)); }
     this.refreshBar();
   }
 
@@ -260,7 +267,7 @@ export class Duel {
     r.over[col] = value;
     d.mark("is-shone");
     this.flash("light"); this.fx.at(d.el, "gold", 40);
-    this.h.sound?.();
+    this.h.sfx?.("shine");
     await d.roll(value, { dur: 1.3 });
     if (this.closed) return;
     d.mark("is-shone");
@@ -324,7 +331,7 @@ export class Duel {
 }
 
 /** A short full-screen banner, used when the Light grants a boon. */
-export function banner({ title, sub, text, kind = "light", low = false, ms = 5200 }) {
+export function banner({ title, sub, text, rows = null, kind = "light", low = false, ms = 5200 }) {
   document.getElementById("grim-sanity-banner")?.remove();
   const el = document.createElement("div");
   el.id = "grim-sanity-banner";
@@ -335,7 +342,7 @@ export function banner({ title, sub, text, kind = "light", low = false, ms = 520
       <div class="gsn-banner-art">${sigil(kind === "light" ? "light" : "abyss")}</div>
       <div class="gsn-banner-kicker"><span>${esc(sub ?? "")}</span></div>
       <div class="gsn-banner-title">${esc(title)}</div>
-      <div class="gsn-banner-text">${esc(text ?? "")}</div>
+      ${rows ? `<div class="gsn-banner-rows">${rows.map((r) => `<div class="gsn-banner-row">${rows.length > 1 ? `<b>${esc(r.name)}</b>` : ""}${r.mad.map((m) => `<p><em>${esc(MAD_LABEL[m.tier] ?? "")} · ${esc(m.span)}</em><strong>${esc(m.name)}</strong><span>${esc(m.text)}</span></p>`).join("")}</div>`).join("")}</div>` : `<div class="gsn-banner-text">${esc(text ?? "")}</div>`}
     </div>`;
   document.body.appendChild(el);
   const fx = new Field(el.querySelector(".gsn-fx"), { low: true });

@@ -1,7 +1,9 @@
 // Grim Sanity: wiring. Settings, the GM button, socket sync, and the flow of a duel.
 import { MODULE_ID, SOCKET, MAX_TRAUMA, INSANITY_DICE, clamp, rollDice } from "./logic.js";
 import { cardById, boonById, pickLine, openCards, drawCards, STAMPS, UNTIL } from "./cards.js";
-import { get, set, lang, txt, sanity, party, tracked, applyOutcome, longRest, mend, crack, setCracked, clearCondition, mostCracked, endScene } from "./store.js";
+import { get, set, lang, txt, sanity, party, tracked, applyOutcome, longRest, mend, crack, setCracked, clearCondition, mostCracked, endScene, inflict, clearMadness, expireMadness, burn } from "./store.js";
+import { TIER_NAME } from "./madness.js";
+import { play } from "./sfx.js";
 import { Duel, banner } from "./duel.js";
 import { Panel } from "./panel.js";
 import { Hud } from "./hud.js";
@@ -22,12 +24,15 @@ Hooks.once("init", () => {
   reg("maxDice", { name: "Most Sanity Dice", hint: "A character never starts with more dice than this. Dice = best of INT, WIS, CHA modifier + 1.", scope: "world", config: true, type: Number, range: { min: 3, max: 8, step: 1 }, default: 5 });
   reg("restDice", { name: "Dice mended by a long rest", hint: "0 turns off automatic mending.", scope: "world", config: true, type: Number, range: { min: 0, max: 5, step: 1 }, default: 1 });
   reg("inspiration", { name: "Inspiration for the unshaken", hint: "A character who wins every pair gains Inspiration, once per session.", scope: "world", config: true, type: Boolean, default: true });
+  reg("madness", { name: "Madness", hint: "Losing pairs also brings a madness from the 5e tables: 1 pair short-term, 2 long-term, 3 or more long-term and indefinite. Playable leaves out results that take a character out of the game (paralysed, stunned, unconscious).", scope: "world", config: true, type: String, choices: { full: "Full tables", playable: "Playable results only", off: "Off" }, default: "full" });
+  reg("frayed", { name: "Cracked dice weaken the mind", hint: "Each cracked Sanity Die is -1 to Intelligence, Wisdom and Charisma saving throws.", scope: "world", config: true, type: Boolean, default: true });
   reg("applyChanges", { name: "Symptoms change the sheet", hint: "Where dnd5e allows it, a symptom also applies its rule (for example disadvantage on Stealth). Turn off to keep symptoms as notes only.", scope: "world", config: true, type: Boolean, default: true });
   reg("hudPlayers", { name: "Players see the party strip", scope: "world", config: true, type: Boolean, default: true });
   reg("postToChat", { name: "Post results to chat", scope: "world", config: true, type: Boolean, default: true });
   reg("hudShow", { name: "Show the party strip", scope: "client", config: true, type: Boolean, default: true });
   reg("hudScale", { name: "Party strip size (%)", scope: "client", config: true, type: Number, range: { min: 70, max: 160, step: 5 }, default: 100 });
-  reg("sound", { name: "Dice sound", scope: "client", config: true, type: Boolean, default: true });
+  reg("sound", { name: "Sound effects", scope: "client", config: true, type: Boolean, default: true });
+  reg("volume", { name: "Sound effects volume (%)", hint: "Also follows Foundry's own Interface volume.", scope: "client", config: true, type: Number, range: { min: 0, max: 100, step: 5 }, default: 70 });
   reg("lowFx", { name: "Reduced effects", hint: "Turn off particles, fog and flashes on this computer if the screen stutters.", scope: "client", config: true, type: Boolean, default: false });
   reg("deck", { scope: "world", config: false, type: Object, default: { off: {}, suits: {}, cap: 3, preset: "travel" } });
   reg("hidden", { scope: "world", config: false, type: Object, default: {} });
@@ -63,7 +68,9 @@ Hooks.once("ready", () => {
     grant: (boonId, actorId) => game.user.isGM && grant(boonId, actorId),
     draw: (count = 3) => drawCards(get("deck"), count).map((c) => c.id),
     openCards: () => openCards(get("deck")).map((c) => c.id),
-    sanity, party, crack, mend, setCracked, clearCondition, endScene, state
+    /** Roll a fresh madness on a character: "short", "long" or "indef". */
+    inflict: (actor, tier) => game.user.isGM && inflictAndShow(actor, tier),
+    sanity, party, crack, mend, setCracked, clearCondition, clearMadness, endScene, state
   };
 });
 
@@ -84,6 +91,12 @@ for (const hook of ["updateActor", "createActor", "deleteActor", "updateUser", "
   Hooks.on(hook, () => { state.hud?.schedule(); if (state.panel?.open && !state.panel.el.matches(":focus-within")) state.panel.render(); });
 }
 
+// Timed madness ends when world time passes it. One GM's computer does the bookkeeping.
+Hooks.on("updateWorldTime", () => {
+  const lead = game.users?.activeGM ? game.users.activeGM.id === game.user.id : game.user.isGM;
+  if (lead) expireMadness().catch((e) => console.warn(`${MODULE_ID} | madness timer`, e));
+});
+
 // A long rest mends dice. The hook fires on the computer that ran the rest.
 Hooks.on("dnd5e.restCompleted", (actor, result, config) => {
   const long = result?.longRest ?? (result?.type === "long" || config?.type === "long");
@@ -93,7 +106,7 @@ Hooks.on("dnd5e.restCompleted", (actor, result, config) => {
 function openPanel() {
   if (!game.user.isGM) return;
   if (game.system?.id !== "dnd5e") ui.notifications?.warn("Grim Sanity is built for the dnd5e system.");
-  state.panel ??= new Panel({ start: startDuel, grant, busy: () => !!state.duel || state.starting });
+  state.panel ??= new Panel({ start: startDuel, grant, inflict: inflictAndShow, busy: () => !!state.duel || state.starting });
   state.panel.toggle();
 }
 
@@ -167,15 +180,18 @@ async function shine(actorId, col) {
 async function seal() {
   const d = state.duel, o = state.overlay; if (!d || !o) return;
   const results = o.results();
+  sfx("seal");
   endDuel();
   const lines = [];
   for (const r of results) {
     const actor = game.actors.get(r.actorId); if (!actor) continue;
     let extra = {};
     try { extra = await applyOutcome(actor, r.out, d.card); } catch (e) { console.warn(`${MODULE_ID} | could not apply result`, e); }
-    lines.push({ ...r, inspired: !!extra.inspired });
+    lines.push({ ...r, inspired: !!extra.inspired, mad: extra.mad ?? [] });
   }
   if (get("postToChat") && lines.length) postChat(d, o.trauma, lines);
+  const rows = lines.filter((r) => r.mad.length).map((r) => ({ name: r.name, mad: r.mad.map(madLine) }));
+  if (rows.length) setTimeout(() => { const msg = { t: "mad", rows }; emit(msg); showMad(msg); }, 900);
 }
 
 function endDuel() {
@@ -193,7 +209,7 @@ async function begin(duel) {
     isGM, lang: duel.lang ?? lang(), dim: duel.dim, accent: duel.accent, low: get("lowFx"),
     canRoll: (p) => isGM || p.userId === game.user.id || !!game.actors.get(p.actorId)?.isOwner,
     onTrauma: () => isGM && rollTrauma(), onPlayer: rollPlayer, onShine: (a, c) => isGM && shine(a, c),
-    onSeal: seal, onCancel: endDuel, onDismiss: finish, sound: playSound
+    onSeal: seal, onCancel: endDuel, onDismiss: finish, sfx
   });
 }
 
@@ -208,6 +224,7 @@ function onSocket(msg) {
   if (!msg?.t) return;
   if (msg.t === "start") return begin(msg.duel);
   if (msg.t === "boon") return showBoon(msg);
+  if (msg.t === "mad") return showMad(msg);
   if (!state.duel || msg.id !== state.duel.id) return;
   if (msg.t === "trauma") state.overlay?.setTrauma(msg.values);
   else if (msg.t === "proll") state.overlay?.setPlayer(msg.actorId, msg.values);
@@ -234,23 +251,48 @@ function showBoon(msg) {
   const b = boonById(msg.id); if (!b) return;
   const t = txt(b);
   banner({ kind: "light", sub: "The Light answers", title: t.name, text: `${t.effect}${msg.who ? ` (${msg.who})` : ""}`, low: get("lowFx") });
+  sfx("boon");
+}
+
+/* ---------- madness ---------- */
+const madLine = (m) => ({ tier: m.tier, name: m.name, text: m.text, span: m.span });
+
+function showMad(msg) {
+  const rows = (msg.rows ?? []).slice(0, 8); if (!rows.length) return;
+  banner({ kind: "dark", sub: "Madness takes hold", title: rows.length === 1 ? rows[0].name : "The Mind Gives Way", rows, low: get("lowFx"), ms: 5200 + rows.length * 1400 });
+  sfx("madness");
+}
+
+async function inflictAndShow(actor, tier) {
+  const m = await inflict(actor, tier); if (!m) return null;
+  const msg = { t: "mad", rows: [{ name: actor.name, mad: [madLine(m)] }] };
+  emit(msg); showMad(msg);
+  return m;
 }
 
 /* ---------- small things ---------- */
+/** An unhinged character spends an Insanity Die: +1d8 to a roll, paid for in psychic damage. */
 async function insanityDie(actor) {
   const [v] = await rollValues(1, 8);
+  const burned = await burn(actor, v);
+  let mad = null;
+  if (v === 1) {
+    // Only the GM may change another player's sheet beyond damage, but an owner can change their own character.
+    try { mad = await inflict(actor, "short"); } catch (e) { console.warn(`${MODULE_ID} | madness`, e); }
+    if (mad) { const msg = { t: "mad", rows: [{ name: actor.name, mad: [madLine(mad)] }] }; emit(msg); showMad(msg); }
+  }
+  sfx("crack");
   ChatMessage.create({
     speaker: ChatMessage.getSpeaker({ actor }),
-    content: `<div class="gsn-chat is-insane"><div class="gsn-chat-kicker">Insanity Die</div><div class="gsn-chat-total">+${v}</div><p>Add it to one attack or damage roll. Attacks against ${esc(actor.name)} have advantage until the start of their next turn.</p></div>`
+    content: `<div class="gsn-chat is-insane"><div class="gsn-chat-kicker">Insanity Die</div><div class="gsn-chat-total">+${v}</div><p>Add it to one attack or damage roll this turn. ${esc(actor.name)} takes <b>${v} psychic damage</b>${burned ? "" : " (apply it by hand)"}.</p>${v === 1 ? `<p class="gsn-chat-told">A 1: ${mad ? `${esc(TIER_NAME.short.en)}: <b>${esc(mad.name)}</b>. ${esc(mad.text)}` : "a short-term madness takes hold."}</p>` : ""}</div>`
   });
 }
 
-function playSound() {
+function sfx(name) {
   if (!get("sound")) return;
-  try {
-    const helper = foundry.audio?.AudioHelper ?? globalThis.AudioHelper;
-    helper?.play({ src: "sounds/dice.wav", volume: 0.6, autoplay: true, loop: false }, false);
-  } catch (e) { /* silent */ }
+  let ui = 1;
+  try { ui = Number(game.settings.get("core", "globalInterfaceVolume")); if (!Number.isFinite(ui)) ui = 1; } catch (e) { /* older or newer core: use our own volume alone */ }
+  play(name, (Number(get("volume")) / 100) * ui);
 }
 
 function postChat(duel, trauma, lines) {
@@ -263,7 +305,8 @@ function postChat(duel, trauma, lines) {
       if (r.out.cracks) bits.push(`${r.out.cracks} cracked`);
       if (r.out.until && def) bits.push(UNTIL[r.out.until]);
       if (r.inspired) bits.push("Inspiration");
-      return `<div class="gsn-chat-row is-${r.out.key}"><b>${esc(r.name)}</b><span class="gsn-chat-dice">${dice}</span><em>${STAMPS[r.out.key]}</em>${bits.length ? `<small>${esc(bits.join(" · "))}</small>` : ""}</div>`;
+      const mad = (r.mad ?? []).map((m) => `<small class="gsn-chat-mad"><b>${esc(TIER_NAME[m.tier].en)} · ${esc(m.name)}</b> (${esc(m.span)}) ${esc(m.text)}</small>`).join("");
+      return `<div class="gsn-chat-row is-${r.out.key}"><b>${esc(r.name)}</b><span class="gsn-chat-dice">${dice}</span><em>${STAMPS[r.out.key]}</em>${bits.length ? `<small>${esc(bits.join(" · "))}</small>` : ""}${mad}</div>`;
     }).join("");
     ChatMessage.create({
       content: `<div class="gsn-chat"><div class="gsn-chat-kicker">Trial of Sanity · Trauma ${duel.trauma}</div><div class="gsn-chat-title">${esc(t.name)}</div>

@@ -40,14 +40,20 @@ export function resolve(player, trauma, { over = {}, tieToPlayer = false } = {})
  * @param lost      pairs lost
  * @param intact    Sanity Dice the character still had before the duel
  * @param unhinged  the character was already unhinged (rolled Insanity Dice)
+ * Returns cracks, how long the card's symptom lasts, and which madness tiers to roll.
  */
 export function outcome(lost, { intact, unhinged }) {
   const until = lost >= 3 ? "full" : lost === 2 ? "rest" : lost === 1 ? "scene" : null;
-  if (unhinged) return { key: lost ? "haunted" : "unshaken", cracks: 0, breaks: false, until, inspiration: lost === 0 };
+  if (unhinged) {
+    // No dice left to crack, so the mind pays instead: every loss is at least a long-term madness.
+    const madness = lost >= 2 ? ["long", "indef"] : lost === 1 ? ["long"] : [];
+    return { key: lost ? "haunted" : "unshaken", cracks: 0, breaks: false, until, inspiration: false, madness };
+  }
   const cracks = Math.min(lost, MAX_CRACKS_PER_DUEL, intact);
   const breaks = cracks > 0 && intact - cracks <= 0;
   const key = breaks ? "unhinged" : ["unshaken", "shaken", "fractured", "broken"][Math.min(lost, 3)];
-  return { key, cracks, breaks, until, inspiration: lost === 0 };
+  const madness = lost >= 3 ? ["long", "indef"] : lost === 2 ? ["long"] : lost === 1 ? [breaks ? "long" : "short"] : [];
+  return { key, cracks, breaks, until, inspiration: lost === 0, madness };
 }
 
 export const rollDice = (count, sides) => Array.from({ length: count }, () => Math.floor(Math.random() * sides) + 1);

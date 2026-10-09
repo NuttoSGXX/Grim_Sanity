@@ -2,7 +2,7 @@
 // tend the party's dice, and grant the Light's boons.
 import { MAX_TRAUMA } from "./logic.js";
 import { DARK, LIGHT, SUITS, PRESETS, UNTIL_SHORT, openCards, drawCards, presetDeck, cardById } from "./cards.js";
-import { party, tracked, sanity, get, set, lang, crack, mend, setMax, clearCondition, endScene, newSession, mendAll } from "./store.js";
+import { party, tracked, sanity, get, set, lang, crack, mend, setMax, clearCondition, clearMadness, endScene, newSession, mendAll } from "./store.js";
 import { cardMarkup } from "./duel.js";
 import { miniD6, miniD8 } from "./art.js";
 
@@ -10,7 +10,7 @@ const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "
 const TABS = [["duel", "Duel"], ["deck", "Deck"], ["party", "Party"], ["light", "Light"]];
 
 export class Panel {
-  /** @param h { start(spec), grant(boonId, actorId), busy() } */
+  /** @param h { start(spec), grant(boonId, actorId), inflict(actor, tier), busy() } */
   constructor(h) {
     this.h = h; this.el = null;
     this.s = { tab: "duel", drawn: [], pick: null, custom: { title: "The Unseen", trauma: 1 }, who: {}, target: {} };
@@ -119,6 +119,10 @@ export class Panel {
             <button type="button" data-max="${actor.id}" data-d="-1" title="One die fewer">−</button>
             <button type="button" data-max="${actor.id}" data-d="1" title="One die more">+</button>
           </div>
+          <div class="gsn-madrow"><label>Madness</label>
+            ${s.mad.map((m) => `<span class="gsn-madchip is-${m.tier}" title="${esc(m.text)}"><em>${esc(m.name)}</em><small>${esc(m.tier === "indef" ? "until mended" : m.span)}</small><button type="button" data-unmad="${actor.id}" data-tier="${m.tier}" title="Remove this madness">×</button></span>`).join("")}
+            <span class="gsn-steps"><button type="button" data-mad="${actor.id}" data-tier="short" title="Roll a short-term madness (1d10 minutes)">+ Short</button><button type="button" data-mad="${actor.id}" data-tier="long" title="Roll a long-term madness (1d10 x 10 hours)">+ Long</button><button type="button" data-mad="${actor.id}" data-tier="indef" title="Roll an indefinite madness (a flaw, until every die has mended)">+ Indef</button></span>
+          </div>
           ${s.cond ? `<div class="gsn-cond"><em>${esc(s.cond.name)}</em><small>${esc(UNTIL_SHORT[s.cond.until] ?? "")}</small><span>${esc(s.cond.text)}</span><button type="button" data-clear="${actor.id}" title="Remove the symptom">×</button></div>` : ""}
         </div>`;
     }).join("");
@@ -187,6 +191,8 @@ export class Panel {
       if (d.mend) { await mend(actor(d.mend), 1); return this.render(); }
       if (d.max) { const a = actor(d.max); await setMax(a, sanity(a).max + Number(d.d)); return this.render(); }
       if (d.clear) { await clearCondition(actor(d.clear)); return this.render(); }
+      if (d.mad) { await this.h.inflict?.(actor(d.mad), d.tier); return this.render(); }
+      if (d.unmad) { await clearMadness(actor(d.unmad), d.tier); return this.render(); }
       if ("scene" in d) { await endScene(); return this.render(); }
       if ("session" in d) { await newSession(); ui.notifications?.info("Grim Sanity: Inspiration can be earned from a duel again."); return this.render(); }
       if ("mendall" in d) { await mendAll(); return this.render(); }

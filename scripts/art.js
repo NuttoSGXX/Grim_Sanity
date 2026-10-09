@@ -59,6 +59,26 @@ const ART = {
     </g>
     <ellipse cx="100" cy="114" rx="7" ry="11" fill="currentColor"/>
     <g class="gsn-sg-rise gsn-sg-fall" fill="currentColor"><circle cx="78" cy="176" r="2.4"/><circle cx="100" cy="184" r="2.8"/><circle cx="122" cy="172" r="2.2"/></g>`,
+  // Doubt: a mask with someone else behind it.
+  doubt: `
+    <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M62 52c24-10 52-10 76 0v40c0 34-16 56-38 66-22-10-38-32-38-66Z" stroke-width="2"/>
+      <path d="M72 62c18-7 38-7 56 0" stroke-width="1" opacity=".5"/>
+      <path d="M72 88c8-8 18-8 24 0-6 6-18 6-24 0ZM104 88c6-8 16-8 24 0-8 6-18 6-24 0Z" stroke-width="1.8"/>
+      <path d="M100 100v14M88 128c8 6 16 6 24 0" stroke-width="1.6"/>
+      <path d="M100 44v114" stroke-width=".8" stroke-dasharray="3 5" opacity=".6"/>
+      <g class="gsn-sg-spin" opacity=".45">${ring(66, 12, 10, 1)}</g>
+    </g>
+    <circle cx="116" cy="88" r="3" fill="currentColor"/>`,
+  // Vigil: a low fire under a thin moon.
+  vigil: `
+    <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M124 36a26 26 0 1 0 22 40 22 22 0 0 1-22-40Z" stroke-width="1.6" opacity=".8"/>
+      <path d="M100 152c-20 0-30-14-26-30 3-12 14-16 14-30 10 6 14 14 12 24 6-4 9-10 9-18 14 10 22 24 18 38-3 10-13 16-27 16Z" stroke-width="2"/>
+      <path d="M100 150c-9 0-13-7-11-14 2-6 8-8 9-15 6 5 12 12 11 20-1 6-4 9-9 9Z" stroke-width="1.2" opacity=".7"/>
+      <path d="M60 158l80 10M60 168l80-10" stroke-width="2.4"/>
+    </g>
+    <g class="gsn-sg-rise" fill="currentColor"><circle cx="84" cy="78" r="1.8"/><circle cx="112" cy="68" r="1.4"/><circle cx="96" cy="58" r="1.6" opacity=".7"/></g>`,
   // No card: the abyss itself.
   abyss: `
     <g fill="none" stroke="currentColor" stroke-linecap="round">

@@ -616,3 +616,49 @@
   .gsn-eye svg, .gsn-fog i, .gsn-sg-ring, .gsn-sg-spin, .gsn-sg-rise, .gsn-banner-rays { animation: none; }
   .gsn-stage.is-shake { animation: none; }
 }
+
+/* =====================================================================
+   v0.2: new suits, madness, dark banner
+   ===================================================================== */
+.gsn-suit-doubt { --gsn-suit: #b79be0; }
+.gsn-suit-vigil { --gsn-suit: #e8944a; }
+
+/* madness chips on the party strip */
+.gsn-hud-mad { display: flex; align-items: baseline; gap: 0.45em; max-width: 14em; }
+.gsn-hud-mad em { font-family: var(--gsn-text); font-style: normal; font-size: 0.8em; color: #e3c8ff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gsn-hud-mad small { flex: none; font-family: var(--gsn-num); font-size: 0.7em; color: #a58cc4; }
+.gsn-hud-mad::before { content: ""; flex: none; width: 0.42em; height: 0.42em; transform: rotate(45deg) translateY(-0.1em); background: var(--gsn-violet); box-shadow: 0 0 0.5em var(--gsn-violet); }
+.gsn-hud-mad.is-short::before { background: #ff8a80; box-shadow: 0 0 0.5em #ff8a80; }
+.gsn-hud-mad.is-short em { color: #ffd0c8; }
+
+/* madness in the GM panel */
+.gsn-madrow { flex: 1 1 100%; display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-left: 25px; }
+.gsn-madrow label { font-size: 8.5px; letter-spacing: 0.2em; text-transform: uppercase; color: #8d8474; }
+.gsn-madrow .gsn-steps { margin-left: auto; }
+.gsn-madchip { display: inline-flex; align-items: baseline; gap: 6px; padding: 2px 2px 2px 7px; border: 1px solid #4a2a7a; background: rgba(164, 92, 255, 0.1); }
+.gsn-madchip.is-short { border-color: #7d2a2a; background: rgba(200, 20, 30, 0.1); }
+.gsn-madchip em { font-family: var(--gsn-text); font-style: normal; font-size: 12px; font-weight: 600; color: #e3c8ff; }
+.gsn-madchip.is-short em { color: #ffd0c8; }
+.gsn-madchip small { font-size: 8.5px; letter-spacing: 0.12em; text-transform: uppercase; color: #a58cc4; }
+.gsn-panel .gsn-madchip button { font-size: 14px; letter-spacing: 0; padding: 0 4px; }
+.gsn-panel .gsn-madchip button:hover { color: #fff; }
+
+/* the dark banner: madness takes hold */
+.gsn-banner.is-dark::before { background: radial-gradient(ellipse 70% 60% at 50% 45%, rgba(46, 10, 40, 0.8), rgba(0, 0, 0, 0.9)); }
+.gsn-banner.is-dark .gsn-banner-rays { background: repeating-conic-gradient(from 150deg at 50% 0%, rgba(164, 92, 255, 0.1) 0deg 2deg, transparent 2deg 11deg); }
+.gsn-banner.is-dark .gsn-banner-art { color: var(--gsn-violet); filter: drop-shadow(0 0 18px rgba(164, 92, 255, 0.8)); width: min(15vh, 140px); }
+.gsn-banner.is-dark .gsn-banner-kicker { color: #c9a6f5; }
+.gsn-banner.is-dark .gsn-banner-kicker::before, .gsn-banner.is-dark .gsn-banner-kicker::after { background: linear-gradient(90deg, transparent, var(--gsn-violet)); }
+.gsn-banner.is-dark .gsn-banner-title { font-size: clamp(26px, 3.6vw, 64px); color: #f3e6ff; text-shadow: 0 0 0.5em rgba(164, 92, 255, 0.8), 0 3px 14px #000; animation: gsn-jitter 2.6s steps(1) infinite; }
+.gsn-banner-rows { display: flex; flex-wrap: wrap; justify-content: center; gap: 1.2vh 2.4vw; max-width: 92vw; margin-top: 0.6vh; }
+.gsn-banner-row { display: flex; flex-direction: column; gap: 0.6vh; min-width: min(30ch, 80vw); max-width: 44ch; padding: 1vh 1.2vw 1.2vh; text-align: left; background: rgba(12, 6, 16, 0.72); border: 1px solid #4a2a7a; border-left: 2px solid var(--gsn-violet); }
+.gsn-banner-row > b { font-size: clamp(13px, 1.25vw, 22px); font-weight: 700; letter-spacing: 0.08em; color: #fff4dc; }
+.gsn-banner-row p { margin: 0; display: flex; flex-direction: column; gap: 0.15em; }
+.gsn-banner-row em { font-style: normal; font-size: clamp(9px, 0.72vw, 13px); font-weight: 600; letter-spacing: 0.24em; text-transform: uppercase; color: #c9a6f5; }
+.gsn-banner-row strong { font-family: var(--gsn-display); font-size: clamp(17px, 1.7vw, 32px); font-weight: 700; color: #f3e6ff; text-shadow: 0 0 0.5em rgba(164, 92, 255, 0.6); }
+.gsn-banner-row span { font-family: var(--gsn-text); font-size: clamp(12px, 1.02vw, 19px); line-height: 1.5; color: #d9cfe6; }
+@keyframes gsn-jitter { 0%, 100% { transform: none; } 7% { transform: translate(2px, -1px) skewX(-2deg); } 9% { transform: none; } 53% { transform: translate(-2px, 1px); } 55% { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .gsn-banner.is-dark .gsn-banner-title { animation: none; } }
+
+.gsn-chat-row > small.gsn-chat-mad { font-family: var(--gsn-text); font-style: normal; font-size: 11.5px; line-height: 1.45; color: #cdbfe0; padding-left: 7px; border-left: 2px solid #a45cff; margin-top: 2px; }
+.gsn-chat-mad b { color: #e3c8ff; }

@@ -2,7 +2,7 @@
   "id": "grim-sanity",
   "title": "Grim Sanity",
   "description": "Sanity Dice for dnd5e. Every character holds a row of d6; when horror strikes, the GM plays a card and each player duels the Trauma Dice, Risk style, on a cinematic screen. Dice crack, symptoms take hold, and the broken go unhinged. Nothing is lost for good.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "authors": [{ "name": "NuttoSGXX" }],
   "compatibility": { "minimum": "13", "verified": "14" },
   "relationships": {
@@ -13,5 +13,5 @@
   "socket": true,
   "url": "https://github.com/NuttoSGXX/Grim_Sanity",
   "manifest": "https://github.com/NuttoSGXX/Grim_Sanity/releases/latest/download/module.json",
-  "download": "https://github.com/NuttoSGXX/Grim_Sanity/releases/download/v0.1.0/module.zip"
+  "download": "https://github.com/NuttoSGXX/Grim_Sanity/releases/download/v0.2.0/module.zip"
 }

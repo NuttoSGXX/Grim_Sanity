@@ -57,6 +57,7 @@ export class Hud {
         }).join("");
       const turned = was && was.unhinged !== s.unhinged;
       this.prev.set(actor.id, { intact: s.intact, unhinged: s.unhinged });
+      const mad = s.mad.map((m) => `<span class="gsn-hud-mad is-${m.tier}" data-tooltip="${esc(m.text)}"><em>${esc(m.name)}</em><small>${esc(m.tier === "indef" ? "∞" : m.span)}</small></span>`).join("");
       const cond = s.cond ? `<span class="gsn-hud-cond" data-tooltip="${esc(s.cond.text)}"><em>${esc(s.cond.name)}</em><small>${esc(UNTIL_SHORT[s.cond.until] ?? "")}</small></span>` : "";
       return `
         <div class="gsn-hud-pc${s.unhinged ? " is-unhinged" : ""}${turned ? " just-turned" : ""}${s.cracked ? " is-hurt" : ""}" data-actor="${esc(actor.id)}">
@@ -64,7 +65,7 @@ export class Hud {
           <div class="gsn-hud-body">
             <b>${esc(actor.name)}</b>
             <div class="gsn-hud-dice${s.unhinged ? " is-insane" : ""}" ${s.unhinged ? 'data-tooltip="Unhinged: click to roll an Insanity Die"' : `data-tooltip="${s.intact} of ${s.max} Sanity Dice"`}>${dice}${s.unhinged ? "<span>Unhinged</span>" : ""}</div>
-            ${cond}
+            ${cond}${mad}
           </div>
         </div>`;
     }).join("");
