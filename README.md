@@ -51,7 +51,8 @@ Open the panel from the **skull button in the Token controls**, the skull on the
 1. **Draw 3** deals three open cards; click one. Or pick any open card from the list, or choose **No card: Trauma only** for a named horror with Trauma 1 to 5 and no symptom.
 2. Tick **who faces it**. Cards that hit an area say so; tick only the characters inside it.
 3. **Heart Ward** makes ties go to the players for this one duel.
-4. **Unleash.**
+4. **Madness** decides whether this duel also brings madness. Switch it off when the card is heavy enough alone; dice still crack and the symptom still applies. The switch stays as you left it until you change it.
+5. **Unleash.**
 
 On the duel screen the GM has **Roll Trauma**, **Roll Remaining** (rolls for anyone who has not clicked), **Shine**, **Seal Fate** (applies the results and closes) and **Cancel** (closes and changes nothing). Each player clicks their own row to roll. The GM can click any row.
 
@@ -65,7 +66,7 @@ Decide which cards may be drawn, at any moment:
 Crack or mend a die, change how many dice a character has, remove a symptom, roll or remove a madness, hide a character from the strip. **End Scene** clears symptoms that last for the scene. **New Session** lets Inspiration be earned again. **Mend All** restores everyone.
 
 ### Light tab
-Eight boons to hand the party. Granting one shows a golden banner to everyone. Three are applied by the module: **Faint Glimmer** mends a die for the most cracked character, **Lifting Fog** removes one symptom, **Heart Ward** arms the next duel.
+Twenty boons to hand the party, each with a tier from 1 to 3 and the scenes it suits (Travel, Combat, Social, Camp). Filter by scene at the top. Granting one shows a golden banner to everyone. Four are applied by the module: **Faint Glimmer** mends a die for the most cracked character, **Dawn** mends a die for everyone, **Lifting Fog** removes one symptom, **Heart Ward** arms the next duel.
 
 ## The party strip
 
@@ -101,6 +102,7 @@ A symptom is added to the character as an Active Effect with its text. Where dnd
 ```js
 const gs = game.modules.get("grim-sanity").api;
 gs.startDuel({ cardId: "brides-song", actorIds: [...] });   // or { trauma: 4, title: "Demogorgon" }
+gs.startDuel({ cardId: "dying-fire", madness: false });   // this duel brings no madness
 gs.setTrauma([6, 4, 2]);        // supply the Trauma Dice from outside, for example rolled by viewers
 gs.shine(actorId, column);      // reroll one losing die
 gs.seal(); gs.cancel();

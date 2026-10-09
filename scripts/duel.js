@@ -92,7 +92,7 @@ export class Duel {
           <div class="gsn-row gsn-trow">
             <div class="gsn-who gsn-who-dark"><div class="gsn-glyph">${sigil("abyss")}</div><div><b>Trauma</b><span>The Darkness · ${duel.trauma} ${duel.trauma === 1 ? "die" : "dice"}</span></div></div>
             <div class="gsn-cells">${cells(duel.trauma)}</div>
-            <div class="gsn-end"><div class="gsn-prompt">${h.isGM ? "Roll the Trauma" : "The dark gathers"}</div>${duel.ward ? `<div class="gsn-ward">Heart Ward · ties go to the players</div>` : `<div class="gsn-tie">Ties go to the dark</div>`}</div>
+            <div class="gsn-end"><div class="gsn-prompt">${h.isGM ? "Roll the Trauma" : "The dark gathers"}</div>${duel.ward ? `<div class="gsn-ward">Heart Ward · ties go to the players</div>` : `<div class="gsn-tie">Ties go to the dark</div>`}${duel.madness === false ? `<div class="gsn-tie">No madness this time</div>` : ""}</div>
           </div>
           <div class="gsn-rule"><i></i></div>
           <div class="gsn-rows">${rows}</div>
@@ -247,7 +247,7 @@ export class Duel {
     const bits = [];
     if (o.cracks) bits.push(`${o.cracks} ${o.cracks === 1 ? "die cracks" : "dice crack"}`);
     if (o.until && this.duel.card?.id) bits.push(`symptom ${UNTIL[o.until]}`);
-    for (const tier of o.madness ?? []) bits.push(MAD_NOTE[tier]);
+    if (this.duel.madness !== false) for (const tier of o.madness ?? []) bits.push(MAD_NOTE[tier]);
     if (o.inspiration) bits.push("Inspiration");
     if (o.breaks) bits.push("2 Insanity Dice");
     row.querySelector(".gsn-note").textContent = bits.join(" · ");

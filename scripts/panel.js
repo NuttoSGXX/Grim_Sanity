@@ -1,7 +1,7 @@
 // Grim Sanity: the GM panel. Four tabs: call a duel, open and close the deck,
 // tend the party's dice, and grant the Light's boons.
 import { MAX_TRAUMA } from "./logic.js";
-import { DARK, LIGHT, SUITS, PRESETS, UNTIL_SHORT, openCards, drawCards, presetDeck, cardById } from "./cards.js";
+import { DARK, LIGHT, SUITS, SCENES, PRESETS, UNTIL_SHORT, openCards, drawCards, presetDeck, cardById } from "./cards.js";
 import { party, tracked, sanity, get, set, lang, crack, mend, setMax, clearCondition, clearMadness, endScene, newSession, mendAll } from "./store.js";
 import { cardMarkup } from "./duel.js";
 import { miniD6, miniD8 } from "./art.js";
@@ -13,7 +13,7 @@ export class Panel {
   /** @param h { start(spec), grant(boonId, actorId), inflict(actor, tier), busy() } */
   constructor(h) {
     this.h = h; this.el = null;
-    this.s = { tab: "duel", drawn: [], pick: null, custom: { title: "The Unseen", trauma: 1 }, who: {}, target: {} };
+    this.s = { tab: "duel", drawn: [], pick: null, custom: { title: "The Unseen", trauma: 1 }, who: {}, target: {}, madness: true };
   }
 
   get open() { return !!this.el; }
@@ -76,6 +76,7 @@ export class Panel {
       <div class="gsn-list">${list || `<div class="gsn-empty">No player-owned characters found. Give a player Owner permission on a character.</div>`}</div>
       <div class="gsn-foot">
         <button type="button" class="gsn-switch${ward ? " on" : ""}" data-ward title="Heart Ward: ties go to the players in the next duel"><i></i>Heart Ward</button>
+        ${get("madness") === "off" ? "" : `<button type="button" class="gsn-switch${s.madness ? " on" : ""}" data-madness title="On: pairs lost in this duel also bring a madness. Off: this duel only cracks dice and applies the card's symptom."><i></i>Madness</button>`}
         <span class="gsn-why">${esc(why)}</span>
         <button type="button" class="gsn-go" data-go ${why ? "disabled" : ""}>Unleash${s.pick ? ` · ${trauma}` : ""}</button>
       </div>`;
@@ -136,19 +137,23 @@ export class Panel {
   }
 
   lightTab() {
-    const L = lang(), list = tracked();
-    const rows = LIGHT.map((b) => {
+    const L = lang(), list = tracked(), scene = this.s.scene ?? "all";
+    const boons = LIGHT.filter((b) => scene === "all" || b.scenes.includes(scene)).sort((a, b) => a.tier - b.tier);
+    const rows = boons.map((b) => {
       const t = b[L];
       const pickers = b.auto === "cleanse"
         ? `<select data-target="${b.id}">${list.filter((p) => sanity(p.actor).cond).map((p) => `<option value="${p.actor.id}"${this.s.target[b.id] === p.actor.id ? " selected" : ""}>${esc(p.actor.name)}</option>`).join("") || `<option value="">No one has a symptom</option>`}</select>` : "";
       return `
-        <div class="gsn-boon${b.auto ? " is-auto" : ""}">
+        <div class="gsn-boon is-t${b.tier}${b.auto ? " is-auto" : ""}">
+          <span class="gsn-bpips" title="Tier ${b.tier}">${"<i></i>".repeat(b.tier)}</span>
           <div class="gsn-who"><b>${esc(t.name)}</b><span>${esc(t.effect)}</span></div>
           ${pickers}
           <button type="button" class="gsn-btn gsn-btn-light" data-grant="${b.id}">Grant</button>
         </div>`;
     }).join("");
-    return `<p class="gsn-hint">Granting a boon shows it to everyone. The three marked boons are also applied by the module.</p><div class="gsn-list gsn-list-tall">${rows}</div>`;
+    const tabs = [["all", "All"], ...Object.entries(SCENES)].map(([k, l]) => `<button type="button" class="${scene === k ? "on" : ""}" data-scene="${k}">${l}</button>`).join("");
+    return `<div class="gsn-field"><label>Scene</label><div class="gsn-seg">${tabs}</div></div>
+      <p class="gsn-hint">Granting a boon shows it to everyone. Boons with a gold edge are also applied by the module. Diamonds show the tier, 1 to 3.</p><div class="gsn-list gsn-list-tall">${rows}</div>`;
   }
 
   /* ---------- rendering ---------- */
@@ -172,6 +177,7 @@ export class Panel {
       const d = t.dataset, s = this.s, actor = (id) => game.actors.get(id);
       if ("close" in d) return this.close();
       if (d.tab) { s.tab = d.tab; return this.render(); }
+      if (d.scene) { s.scene = d.scene; return this.render(); }
       // duel
       if ("draw" in d) { s.drawn = drawCards(this.deck(), 3).map((c) => c.id); s.pick = s.drawn[0] ?? s.pick; return this.render(); }
       if (d.pick) { s.pick = d.pick; return this.render(); }
@@ -179,6 +185,7 @@ export class Panel {
       if (d.who) { s.who[d.who] = !s.who[d.who]; return this.render(); }
       if ("all" in d) { for (const p of tracked()) s.who[p.actor.id] = !!d.all; return this.render(); }
       if ("ward" in d) { await set("ward", !get("ward")); return this.render(); }
+      if ("madness" in d) { s.madness = !s.madness; return this.render(); }
       if ("go" in d) return this.start();
       // deck
       if (d.preset) return this.saveDeck(presetDeck(d.preset));
@@ -228,6 +235,6 @@ export class Panel {
     const card = s.pick === "custom" ? { id: null, title: s.custom.title, trauma: s.custom.trauma } : { id: s.pick, trauma: cardById(s.pick).trauma };
     s.drawn = []; s.pick = null;
     this.close();
-    this.h.start?.({ card, actors });
+    this.h.start?.({ card, actors, madness: s.madness });
   }
 }

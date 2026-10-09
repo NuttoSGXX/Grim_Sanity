@@ -58,7 +58,7 @@ Hooks.once("ready", () => {
     /** Start a duel. { cardId } or { trauma, title }, plus optional actorIds. */
     startDuel: (o = {}) => game.user.isGM && startDuel({
       card: o.cardId ? { id: o.cardId, trauma: cardById(o.cardId)?.trauma ?? 1 } : { id: null, title: o.title ?? "The Unseen", trauma: clamp(Number(o.trauma) || 1, 1, MAX_TRAUMA) },
-      actors: o.actorIds ?? tracked().map((p) => p.actor.id)
+      actors: o.actorIds ?? tracked().map((p) => p.actor.id), madness: o.madness !== false
     }),
     /** Supply the Trauma Dice from outside (for example, rolled by viewers). */
     setTrauma: (values) => game.user.isGM && rollTrauma(values),
@@ -118,7 +118,7 @@ async function startDuel(spec) {
   try { await launchDuel(spec); } finally { state.starting = false; }
 }
 
-async function launchDuel({ card, actors }) {
+async function launchDuel({ card, actors, madness = true }) {
   const def = card.id ? cardById(card.id) : null;
   const trauma = clamp(Number(card.trauma) || def?.trauma || 1, 1, MAX_TRAUMA);
   const byId = new Map(party().map((p) => [p.actor.id, p]));
@@ -137,6 +137,7 @@ async function launchDuel({ card, actors }) {
   const duel = {
     id: foundry.utils.randomID?.() ?? Math.random().toString(36).slice(2),
     card: { id: card.id ?? null, title: card.title ?? null, trauma }, trauma, line: pickLine(trauma), ward, players,
+    madness: madness !== false && get("madness") !== "off",   // the GM can leave madness out of a single duel
     dim: get("dim"), accent: hex(get("accent")), lang: lang()
   };
   emit({ t: "start", duel });
@@ -186,7 +187,7 @@ async function seal() {
   for (const r of results) {
     const actor = game.actors.get(r.actorId); if (!actor) continue;
     let extra = {};
-    try { extra = await applyOutcome(actor, r.out, d.card); } catch (e) { console.warn(`${MODULE_ID} | could not apply result`, e); }
+    try { extra = await applyOutcome(actor, d.madness ? r.out : { ...r.out, madness: [] }, d.card); } catch (e) { console.warn(`${MODULE_ID} | could not apply result`, e); }
     lines.push({ ...r, inspired: !!extra.inspired, mad: extra.mad ?? [] });
   }
   if (get("postToChat") && lines.length) postChat(d, o.trauma, lines);
@@ -238,6 +239,7 @@ async function grant(boonId, actorId) {
   let who = null;
   if (b.auto === "restore") { const p = mostCracked(); if (p) { await mend(p.actor, 1); who = p.actor.name; } }
   else if (b.auto === "cleanse") { const a = game.actors.get(actorId); if (a && sanity(a).cond) { await clearCondition(a); who = a.name; } }
+  else if (b.auto === "restoreAll") { for (const p of tracked()) if (sanity(p.actor).cracked > 0) await mend(p.actor, 1); }
   else if (b.auto === "ward") await set("ward", true);
   const msg = { t: "boon", id: boonId, who };
   emit(msg); showBoon(msg);
