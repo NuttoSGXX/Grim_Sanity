@@ -85,7 +85,7 @@ export async function setMadness(actor, rolled) {
   const until = seconds == null ? null : worldTime() + seconds;
   const rec = { id: entry.id, tier, name: t.name, text: t.text, until, span: spanText(tier, seconds), status: status ?? null };
   await dropEffects(actor, `mad-${tier}`);
-  await save(actor, { mad: { ...(actor.getFlag(MODULE_ID, "state")?.mad ?? {}), [tier]: rec } });
+  await save(actor, { mad: { [tier]: rec } });
   await addEffect(actor, {
     name: `${t.name}`, img: ICON("madness"),
     description: `<p><strong>${TIER_NAME[tier].en}.</strong> ${t.text}</p><p><em>Grim Sanity: ${tier === "indef" ? "lasts until every Sanity Die has mended" : `lasts ${rec.span}`}.</em></p>`,
@@ -95,9 +95,10 @@ export async function setMadness(actor, rolled) {
 }
 
 export async function clearMadness(actor, tier = null) {
-  const cur = { ...(actor.getFlag(MODULE_ID, "state")?.mad ?? {}) };
-  for (const t of tier ? [tier] : TIERS) { if (cur[t]) { delete cur[t]; await dropEffects(actor, `mad-${t}`); } }
-  await save(actor, { mad: cur });
+  // Foundry merges flag updates, so leaving a key out does not remove it. Write null over it instead.
+  const cur = actor.getFlag(MODULE_ID, "state")?.mad ?? {}, patch = {};
+  for (const t of tier ? [tier] : TIERS) { await dropEffects(actor, `mad-${t}`); if (cur[t]) patch[t] = null; }
+  if (Object.keys(patch).length) await save(actor, { mad: patch });
 }
 
 /** Inflict a fresh madness of one tier (duel result, Insanity Die, or the GM's button). */
